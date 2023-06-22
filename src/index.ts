@@ -1,31 +1,16 @@
 import express, { Request, Response } from "express";
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
-import Redis from "ioredis";
-import { v4 as uuid } from "uuid";
+import redis from "./redisClient";
+import { Config } from "./types";
+import {
+  generateCoins,
+  getCoinsByRoom,
+  getCoinById,
+  removeCoin,
+} from "./utils";
 
-interface Coin {
-  id: string;
-  position: { x: number; y: number; z: number };
-}
-
-interface Room {
-  name: string;
-  coins: Coin[];
-}
-
-interface Config {
-  rooms: Room[];
-  coinAmount: number;
-  coinArea: {
-    xmin: number;
-    xmax: number;
-    ymin: number;
-    ymax: number;
-    zmin: number;
-    zmax: number;
-  };
-}
+console.log(redis);
 
 const config: Config = {
   rooms: [
@@ -38,7 +23,7 @@ const config: Config = {
       coins: [],
     },
   ],
-  coinAmount: 8,
+  coinAmount: 10,
   coinArea: {
     xmin: 0,
     xmax: 100,
@@ -48,8 +33,6 @@ const config: Config = {
     zmax: 100,
   },
 };
-
-const redis = new Redis(); // Se conecta a Redis
 
 // Genera las monedas iniciales y las almacena en Redis
 for (const room of config.rooms) {
@@ -78,15 +61,15 @@ io.on("connection", (socket: Socket) => {
     socket.join(roomName);
     currentRoom = roomName;
 
-    const coins = getCoinsByRoom(roomName);
+    const coins = getCoinsByRoom(roomName, config);
     socket.emit("coins", coins);
   });
 
   socket.on("grabCoin", (coinId: string) => {
-    const coin = getCoinById(coinId);
+    const coin = getCoinById(coinId, config);
 
     if (coin) {
-      removeCoin(coinId);
+      removeCoin(coinId, config, redis);
       socket.emit("coinGrabbed", coinId);
       socket.to(currentRoom!).emit("coinGrabbed", coinId);
     }
@@ -96,70 +79,9 @@ io.on("connection", (socket: Socket) => {
 // Ruta para obtener la cantidad de monedas disponibles en una habitación
 app.get("/api/coins/:roomName", (req: Request, res: Response) => {
   const roomName = req.params.roomName;
-  const coins = getCoinsByRoom(roomName);
+  const coins = getCoinsByRoom(roomName, config);
   res.json({ count: coins.length });
 });
-
-// Genera un conjunto de monedas en una área específica
-function generateCoins(
-  amount: number,
-  area: {
-    xmin: number;
-    xmax: number;
-    ymin: number;
-    ymax: number;
-    zmin: number;
-    zmax: number;
-  }
-): Coin[] {
-  const coins: Coin[] = [];
-
-  for (let i = 0; i < amount; i++) {
-    const position = {
-      x: getRandomNumber(area.xmin, area.xmax),
-      y: getRandomNumber(area.ymin, area.ymax),
-      z: getRandomNumber(area.zmin, area.zmax),
-    };
-
-    coins.push({ id: uuid(), position });
-  }
-
-  return coins;
-}
-
-// Genera un número aleatorio dentro de un rango
-function getRandomNumber(min: number, max: number): number {
-  return Math.random() * (max - min) + min;
-}
-
-// Obtiene todas las monedas de una habitación
-function getCoinsByRoom(roomName: string): Coin[] {
-  const room = config.rooms.find((r) => r.name === roomName);
-  return room ? room.coins : [];
-}
-
-// Obtiene una moneda por su ID
-function getCoinById(coinId: string): Coin | undefined {
-  for (const room of config.rooms) {
-    const coin = room.coins.find((c) => c.id === coinId);
-    if (coin) {
-      return coin;
-    }
-  }
-  return undefined;
-}
-
-// Elimina una moneda por su ID
-function removeCoin(coinId: string): void {
-  for (const room of config.rooms) {
-    const index = room.coins.findIndex((c) => c.id === coinId);
-    if (index !== -1) {
-      room.coins.splice(index, 1);
-      redis.del(coinId);
-      break;
-    }
-  }
-}
 
 const port = 3000;
 server.listen(port, () => {

@@ -9,32 +9,12 @@ var http_1 = require("http");
 var socket_io_1 = require("socket.io");
 var ioredis_1 = __importDefault(require("ioredis"));
 var uuid_1 = require("uuid");
-var config = {
-    rooms: [
-        {
-            name: "room1",
-            coins: [],
-        },
-        {
-            name: "room2",
-            coins: [],
-        },
-    ],
-    coinAmount: 10,
-    coinArea: {
-        xmin: 0,
-        xmax: 100,
-        ymin: 0,
-        ymax: 100,
-        zmin: 0,
-        zmax: 100,
-    },
-};
+var mock_1 = require("./mock");
 var redis = new ioredis_1.default(); // Se conecta a Redis
 // Genera las monedas iniciales y las almacena en Redis
-for (var _i = 0, _b = config.rooms; _i < _b.length; _i++) {
+for (var _i = 0, _b = mock_1.config.rooms; _i < _b.length; _i++) {
     var room = _b[_i];
-    var coins = generateCoins(config.coinAmount, config.coinArea);
+    var coins = generateCoins(mock_1.config.coinAmount, mock_1.config.coinArea);
     (_a = room.coins).push.apply(_a, coins);
     for (var _c = 0, coins_1 = coins; _c < coins_1.length; _c++) {
         var coin = coins_1[_c];
@@ -91,12 +71,12 @@ function getRandomNumber(min, max) {
 }
 // Obtiene todas las monedas de una habitación
 function getCoinsByRoom(roomName) {
-    var room = config.rooms.find(function (r) { return r.name === roomName; });
+    var room = mock_1.config.rooms.find(function (r) { return r.name === roomName; });
     return room ? room.coins : [];
 }
-// Obtiene una moneda por su ID
+// obtener una moneda por su ID
 function getCoinById(coinId) {
-    for (var _i = 0, _a = config.rooms; _i < _a.length; _i++) {
+    for (var _i = 0, _a = mock_1.config.rooms; _i < _a.length; _i++) {
         var room = _a[_i];
         var coin = room.coins.find(function (c) { return c.id === coinId; });
         if (coin) {
@@ -105,9 +85,9 @@ function getCoinById(coinId) {
     }
     return undefined;
 }
-// Elimina una moneda por su ID
+// Funcion para eliminar una moneda
 function removeCoin(coinId) {
-    for (var _i = 0, _a = config.rooms; _i < _a.length; _i++) {
+    for (var _i = 0, _a = mock_1.config.rooms; _i < _a.length; _i++) {
         var room = _a[_i];
         var index = room.coins.findIndex(function (c) { return c.id === coinId; });
         if (index !== -1) {
